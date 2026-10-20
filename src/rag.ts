@@ -36,6 +36,7 @@ export class LocalRAG {
 
     const files = fs.readdirSync(DOCS_DIR);
     for (const file of files) {
+      if (file.includes("example")) continue;
       const filePath = path.join(DOCS_DIR, file);
       const ext = path.extname(file).toLowerCase();
 
