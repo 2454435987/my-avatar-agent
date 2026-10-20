@@ -20,9 +20,9 @@ export class CostGuard {
   private static PRICE_INPUT_PER_M = 2.0; // 每 100 万输入 token 2元
   private static PRICE_OUTPUT_PER_M = 8.0; // 每 100 万输出 token 8元
 
-  // 从环境变量读取预算限额（默认总预算 2.0 元，单日预算 0.5 元）
-  private static MAX_TOTAL_BUDGET = parseFloat(process.env.MAX_TOTAL_BUDGET_RMB || "2.0");
-  private static MAX_DAILY_BUDGET = parseFloat(process.env.MAX_DAILY_BUDGET_RMB || "0.5");
+  // 从环境变量读取预算限额（默认总预算 5.0 元，单日预算 1.0 元）
+  private static MAX_TOTAL_BUDGET = parseFloat(process.env.MAX_TOTAL_BUDGET_RMB || "5.0");
+  private static MAX_DAILY_BUDGET = parseFloat(process.env.MAX_DAILY_BUDGET_RMB || "1.0");
 
   private static loadUsage(): UsageRecord {
     if (fs.existsSync(USAGE_FILE)) {
