@@ -1,18 +1,5 @@
 import { ChatCompletionTool } from "openai/resources";
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
 import { localRAG } from "./rag.js";
-import { Notifier } from "./notifier.js";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const DATA_DIR = path.join(__dirname, "../data");
-const MESSAGES_FILE = path.join(DATA_DIR, "messages.json");
-
-if (!fs.existsSync(DATA_DIR)) {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-}
 
 // 1. 定义给 DeepSeek 大模型看的工具清单
 export const agentTools: ChatCompletionTool[] = [
@@ -21,42 +8,6 @@ export const agentTools: ChatCompletionTool[] = [
     function: {
       name: "get_github_projects",
       description: "获取吴琦真实的 GitHub 公开项目动态及在研项目。当访客明确询问开源项目、代码仓库时调用。",
-      parameters: {
-        type: "object",
-        properties: {},
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "leave_message",
-      description: "当访客想联系吴琦、合作、招聘、邀约面试或留下联系方式时，调用此工具登记留言。",
-      parameters: {
-        type: "object",
-        properties: {
-          visitorName: {
-            type: "string",
-            description: "访客姓名或称呼",
-          },
-          contact: {
-            type: "string",
-            description: "访客的联系方式（手机号、微信、邮箱等）",
-          },
-          content: {
-            type: "string",
-            description: "留言的具体诉求或合作意向",
-          },
-        },
-        required: ["visitorName", "contact", "content"],
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "download_resume",
-      description: "当访客或 HR 想要获取、查看、索要、下载吴琦的简历 PDF 时调用此工具提供下载链接。",
       parameters: {
         type: "object",
         properties: {},
@@ -77,6 +28,17 @@ export const agentTools: ChatCompletionTool[] = [
           },
         },
         required: ["query"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "download_resume",
+      description: "当访客或 HR 想要获取、查看、索要、下载吴琦的简历 PDF 时调用此工具提供下载链接。",
+      parameters: {
+        type: "object",
+        properties: {},
       },
     },
   },
@@ -133,55 +95,23 @@ export async function executeTool(name: string, argsStr: string): Promise<string
     }
   }
 
-  // 工具 2：访客留言登记
-  if (name === "leave_message") {
-    try {
-      let messages: any[] = [];
-      if (fs.existsSync(MESSAGES_FILE)) {
-        const fileContent = fs.readFileSync(MESSAGES_FILE, "utf-8");
-        messages = JSON.parse(fileContent || "[]");
-      }
-
-      const newMessage = {
-        id: Date.now().toString(),
-        time: new Date().toLocaleString("zh-CN"),
-        visitorName: args.visitorName,
-        contact: args.contact,
-        content: args.content,
-      };
-
-      messages.push(newMessage);
-      fs.writeFileSync(MESSAGES_FILE, JSON.stringify(messages, null, 2), "utf-8");
-
-      // 异步触发微信/邮件实时通知，不阻塞 Agent 主回复链路
-      Notifier.notify(newMessage).catch((e) => console.error(e));
-
-      return JSON.stringify({
-        status: "success",
-        message: "留言已成功存入本地留言本，并已通过实时通道通知吴琦！",
-      });
-    } catch (err: any) {
-      return JSON.stringify({ error: `记录留言失败: ${err.message}` });
-    }
-  }
-
-  // 工具 4：提供简历下载
-  if (name === "download_resume") {
-    return JSON.stringify({
-      status: "ready",
-      downloadUrl: "/api/download-resume",
-      fileName: "吴琦-全栈开发-个人简历.pdf",
-      note: "简历已准备好。请在回复中生成一条醒目的 Markdown 下载链接，格式建议为：[📄 点击下载：吴琦-全栈开发-个人简历.pdf](/api/download-resume)，并礼貌欢迎对方阅览或进一步沟通。",
-    });
-  }
-
-  // 工具 3：检索本地知识库 (RAG)
+  // 工具 2：检索本地知识库 (RAG)
   if (name === "search_knowledge_base") {
     const query = args.query || "";
     const result = await localRAG.search(query);
     return JSON.stringify({
       query,
       result,
+    });
+  }
+
+  // 工具 3：提供简历下载
+  if (name === "download_resume") {
+    return JSON.stringify({
+      status: "ready",
+      downloadUrl: "/api/download-resume",
+      fileName: "吴琦-全栈开发-个人简历.pdf",
+      note: "简历已准备好。请在回复中生成一条醒目的 Markdown 下载链接，格式建议为：[📄 点击下载：吴琦-全栈开发-个人简历.pdf](/api/download-resume)，并礼貌欢迎对方阅览或进一步沟通。",
     });
   }
 

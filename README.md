@@ -8,7 +8,7 @@
 </p>
 
 > 基于 **TypeScript + DeepSeek 大模型** 从零打造的个人数字化分身智能体（AI Digital Avatar）。
-> 具备 **自主 Tool Calling 工具调度**、**流式打字机响应 (SSE)**、**本地简历 RAG 检索增强** 与 **访客微信/邮件实时通知** 全套闭环工程能力。
+> 具备 **自主 Tool Calling 工具调度**、**流式打字机响应 (SSE)**、**本地简历 RAG 检索增强** 与 **一键简历分发下载** 全套闭环工程能力。
 
 ---
 
@@ -16,7 +16,7 @@
 
 - 🧠 **大模型自主意图判断与工具调度 (Function / Tool Calling Loop)**：
   - 基于 DeepSeek Function Calling 协议，构建了完整的 ReAct Agent 思考与行动闭环。
-  - 模型能根据访客问题，自主决策是直接回答、查阅本地技术文档库、拉取 GitHub 仓库还是登记预约。
+  - 模型能根据访客问题，自主决策是直接回答、查阅本地技术文档库、拉取 GitHub 仓库还是提供简历下载。
 - ⚡ **打字机级流式渲染 (Streaming SSE)**：
   - 基于 Node.js 异步生成器 (`AsyncGenerator`) 与 HTTP Chunked 传输，首字返回时间低于 300ms，带来丝滑交互体验。
 - 📚 **本地简历与技术文档 RAG 增强 (Retrieval-Augmented Generation)**：
@@ -26,8 +26,6 @@
   - 动态集成 GitHub 官方 API，实时拉取个人公开仓库、Stars 与技术演进足迹。
 - 📄 **一键简历分发下载**：
   - 具备专属 `download_resume` 工具，访客索要时一键下发带有真实凭证的 PDF 简历。
-- 🔔 **多通道双工实时提醒 (Push Notification)**：
-  - 访客留下合作意向或面试约聊时，毫秒级通过 **微信公众号 (PushPlus)** 与 **QQ 邮箱 (SMTP SSL)** 自动推送到手机端。
 
 ---
 
@@ -48,7 +46,6 @@ flowchart TD
         ToolRouter -->|"search_knowledge_base"| RAG["📚 本地 RAG 检索引擎<br/>(PDF / Word / Markdown 简历分块)"]
         ToolRouter -->|"get_github_projects"| GitHubAPI["🐙 GitHub 官方 REST API"]
         ToolRouter -->|"download_resume"| ResumeFile["📄 简历下载路由 (/api/download-resume)"]
-        ToolRouter -->|"leave_message"| Notifier["🔔 实时通知模块<br/>(微信 PushPlus + QQ 邮箱 SMTP)"]
     end
 
     Tool_Ecosystem -->|"工具执行结果注入上下文"| Loop
@@ -68,11 +65,11 @@ my-avatar-agent/
 │   └── index.html
 ├── src/
 │   ├── agent.ts                # Agent 核心逻辑 (会话记忆、工具循环、流式生成器)
-│   ├── notifier.ts             # 微信与邮件实时双通道推送
+│   ├── costGuard.ts            # 预算熔断与 Token 统计护栏
 │   ├── profile.ts              # 个人档案、人设与安全边界 Prompt
 │   ├── rag.ts                  # 本地多格式文档分块与中文检索器
 │   ├── server.ts               # Web 服务与 API 路由
-│   └── tools.ts                # 工具定义 (GitHub、留言、RAG、简历下载)
+│   └── tools.ts                # 工具定义 (GitHub、RAG、简历下载)
 ├── .env.example                # 环境变量配置模板
 ├── package.json
 └── tsconfig.json

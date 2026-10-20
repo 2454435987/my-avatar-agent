@@ -62,19 +62,6 @@ app.get("/api/download-resume", (req, res) => {
   res.status(404).send("简历文件不存在");
 });
 
-// 查看访客留给你的所有留言接口
-app.get("/api/messages", (req, res) => {
-  const messagesFile = path.join(__dirname, "../data/messages.json");
-  if (fs.existsSync(messagesFile)) {
-    try {
-      const data = JSON.parse(fs.readFileSync(messagesFile, "utf-8") || "[]");
-      res.json(data);
-      return;
-    } catch (e) {}
-  }
-  res.json([]);
-});
-
 // 查看 API 费用统计与熔断状态接口
 app.get("/api/stats", (req, res) => {
   res.json(CostGuard.getStats());
