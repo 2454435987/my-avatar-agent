@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI 数字分身 | 个人介绍</title>
+  <!-- 引入 Tailwind CSS 美化界面 -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- 引入 Markdown 渲染 -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <style>
+    .chat-bubble p { margin-bottom: 0.5rem; }
+    .chat-bubble p:last-child { margin-bottom: 0; }
+    .chat-bubble pre { background: #1e293b; color: #f8fafc; padding: 0.75rem; border-radius: 0.5rem; overflow-x: auto; margin: 0.5rem 0; }
+    .chat-bubble code { font-family: monospace; }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col items-center p-4">
+
+  <!-- 头部信息 -->
+  <header class="w-full max-w-2xl py-6 flex items-center justify-between border-b border-slate-800">
+    <div class="flex items-center space-x-3">
+      <div class="relative">
+        <div class="w-12 h-12 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-xl shadow-lg">
+          🤖
+        </div>
+        <span class="absolute bottom-0 right-0 w-3.5 h-3.5 bg-emerald-500 border-2 border-slate-900 rounded-full"></span>
+      </div>
+      <div>
+        <h1 class="text-lg font-bold text-slate-100 flex items-center gap-2">
+          我的 AI 分身
+          <span class="text-xs bg-cyan-500/10 text-cyan-400 px-2 py-0.5 rounded-full border border-cyan-500/20">DeepSeek 驱动</span>
+        </h1>
+        <p class="text-xs text-slate-400">了解我的经历、技术栈与项目，随时向我提问</p>
+      </div>
+    </div>
+    <div class="flex items-center space-x-2">
+      <a href="/api/download-resume" download="吴琦-全栈开发-个人简历.pdf" class="text-xs text-slate-300 hover:text-cyan-400 bg-slate-800 hover:bg-slate-700/80 px-3 py-1.5 rounded-lg border border-slate-700 transition flex items-center gap-1">
+        📄 下载简历
+      </a>
+      <a href="/api/messages" target="_blank" class="text-xs text-slate-300 hover:text-cyan-400 bg-slate-800 hover:bg-slate-700/80 px-3 py-1.5 rounded-lg border border-slate-700 transition flex items-center gap-1">
+        📬 访客留言
+      </a>
+      <button onclick="clearChat()" class="text-xs text-slate-400 hover:text-slate-200 bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg border border-slate-700 transition">
+        清空对话
+      </button>
+    </div>
+  </header>
+
+  <!-- 聊天消息列表容器 -->
+  <main id="chat-container" class="w-full max-w-2xl flex-1 overflow-y-auto py-6 space-y-4">
+    <!-- 默认欢迎语 -->
+    <div class="flex gap-3">
+      <div class="w-8 h-8 rounded-full bg-cyan-600 flex items-center justify-center text-sm shrink-0">🤖</div>
+      <div class="chat-bubble bg-slate-800 border border-slate-700/60 rounded-2xl rounded-tl-none px-4 py-3 text-sm text-slate-200 max-w-[85%] shadow-sm">
+        你好！我是主人的 <b>AI 数字分身</b>。你可以向我询问关于主人的技能栈、项目经验、求职意向或任何技术问题！
+      </div>
+    </div>
+  </main>
+
+  <!-- 底部输入框 -->
+  <footer class="w-full max-w-2xl pb-6">
+    <form id="chat-form" onsubmit="handleSubmit(event)" class="relative flex items-center">
+      <input
+        id="user-input"
+        type="text"
+        placeholder="输入你想问的问题，例如：'你做过什么有挑战的项目？'..."
+        class="w-full bg-slate-800 border border-slate-700 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 text-slate-100 placeholder-slate-500 rounded-xl pl-4 pr-24 py-3.5 text-sm outline-none transition shadow-lg"
+        autocomplete="off"
+      />
+      <button
+        id="send-btn"
+        type="submit"
+        class="absolute right-2 px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:opacity-95 text-white text-sm font-medium rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed shadow"
+      >
+        发送
+      </button>
+    </form>
+    <div class="text-center mt-2">
+      <span class="text-[11px] text-slate-500">回答由大语言模型生成，仅供参考</span>
+    </div>
+  </footer>
+
+  <script>
+    const chatContainer = document.getElementById('chat-container');
+    const userInput = document.getElementById('user-input');
+    const sendBtn = document.getElementById('send-btn');
+
+    function scrollToBottom() {
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    function appendUserMessage(text) {
+      const msgDiv = document.createElement('div');
+      msgDiv.className = 'flex justify-end gap-3';
+      msgDiv.innerHTML = `
+        <div class="bg-cyan-600 text-white rounded-2xl rounded-tr-none px-4 py-3 text-sm max-w-[85%] shadow">
+          ${escapeHtml(text)}
+        </div>
+      `;
+      chatContainer.appendChild(msgDiv);
+      scrollToBottom();
+    }
+
+    function createBotMessageContainer() {
+      const msgDiv = document.createElement('div');
+      msgDiv.className = 'flex gap-3';
+      msgDiv.innerHTML = `
+        <div class="w-8 h-8 rounded-full bg-cyan-600 flex items-center justify-center text-sm shrink-0">🤖</div>
+        <div class="bot-content chat-bubble bg-slate-800 border border-slate-700/60 rounded-2xl rounded-tl-none px-4 py-3 text-sm text-slate-200 max-w-[85%] shadow-sm">
+          <span class="inline-block animate-pulse">▍</span>
+        </div>
+      `;
+      chatContainer.appendChild(msgDiv);
+      scrollToBottom();
+      return msgDiv.querySelector('.bot-content');
+    }
+
+    function escapeHtml(text) {
+      return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    async function handleSubmit(e) {
+      e.preventDefault();
+      const text = userInput.value.trim();
+      if (!text) return;
+
+      userInput.value = '';
+      userInput.disabled = true;
+      sendBtn.disabled = true;
+
+      appendUserMessage(text);
+      const botContentEl = createBotMessageContainer();
+
+      try {
+        const response = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: text })
+        });
+
+        if (!response.body) throw new Error("无数据响应流");
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder("utf-8");
+        let accumulatedMarkdown = "";
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value, { stream: true });
+          accumulatedMarkdown += chunk;
+          // 渲染 Markdown
+          botContentEl.innerHTML = marked.parse(accumulatedMarkdown);
+          scrollToBottom();
+        }
+      } catch (err) {
+        console.error(err);
+        botContentEl.innerText = "出错了，无法连接到分身后端服务。";
+      } finally {
+        userInput.disabled = false;
+        sendBtn.disabled = false;
+        userInput.focus();
+      }
+    }
+
+    async function clearChat() {
+      if (confirm('确认清空所有对话？')) {
+        await fetch('/api/reset', { method: 'POST' });
+        chatContainer.innerHTML = `
+          <div class="flex gap-3">
+            <div class="w-8 h-8 rounded-full bg-cyan-600 flex items-center justify-center text-sm shrink-0">🤖</div>
+            <div class="chat-bubble bg-slate-800 border border-slate-700/60 rounded-2xl rounded-tl-none px-4 py-3 text-sm text-slate-200 max-w-[85%] shadow-sm">
+              对话已重置。有什么我可以帮你的吗？
+            </div>
+          </div>
+        `;
+      }
+    }
+  </script>
+</body>
+</html>
