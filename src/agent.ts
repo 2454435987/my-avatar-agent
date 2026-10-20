@@ -2,6 +2,7 @@ import OpenAI from "openai";
 import dotenv from "dotenv";
 import { PERSONAL_SYSTEM_PROMPT } from "./profile.js";
 import { agentTools, executeTool } from "./tools.js";
+import { CostGuard } from "./costGuard.js";
 
 dotenv.config();
 
@@ -15,8 +16,14 @@ export class PersonalAgent {
     { role: "system", content: PERSONAL_SYSTEM_PROMPT },
   ];
 
-  // 1. 普通命令行对话（支持工具循环）
+  // 1. 普通对话（支持工具循环 + 预算检查）
   async chat(userInput: string): Promise<string> {
+    // 熔断拦截
+    const budgetCheck = CostGuard.isBudgetExceeded();
+    if (budgetCheck.exceeded) {
+      return `⚠️ 抱歉，${budgetCheck.reason} 为保护主人钱包，AI 对话功能已自动熔断暂停。如需沟通请直接留下联系方式，或点击右上角下载简历！`;
+    }
+
     this.messages.push({ role: "user", content: userInput });
 
     while (true) {
@@ -27,12 +34,18 @@ export class PersonalAgent {
         tool_choice: "auto",
       });
 
+      if (response.usage) {
+        CostGuard.recordUsage(
+          response.usage.prompt_tokens,
+          response.usage.completion_tokens
+        );
+      }
+
       const message = response.choices[0]?.message;
       if (!message) return "抱歉，没有收到回复。";
 
       this.messages.push(message);
 
-      // 如果模型触发了工具调用
       if (message.tool_calls && message.tool_calls.length > 0) {
         for (const toolCall of message.tool_calls) {
           if (toolCall.type === "function") {
@@ -47,7 +60,6 @@ export class PersonalAgent {
             });
           }
         }
-        // 带着工具执行结果继续让模型思考
         continue;
       }
 
@@ -55,18 +67,31 @@ export class PersonalAgent {
     }
   }
 
-  // 2. 流式对话（支持工具调用 + 边执行边打字流式吐出）
+  // 2. 流式对话（支持工具调用 + 预算拦截 + Token 累计）
   async *chatStream(userInput: string): AsyncGenerator<string, void, unknown> {
+    // 预算熔断拦截
+    const budgetCheck = CostGuard.isBudgetExceeded();
+    if (budgetCheck.exceeded) {
+      yield `⚠️ **抱歉，${budgetCheck.reason}**\n\n为保护主人钱包，AI 对话功能已自动熔断暂停。如需沟通，欢迎在页面留言留下联系方式，或点击右上角下载完整简历！`;
+      return;
+    }
+
     this.messages.push({ role: "user", content: userInput });
 
     while (true) {
-      // 第一步：先探查是否需要调用工具（非 stream 形式判断意图更稳健）
       const checkRes = await client.chat.completions.create({
         model: process.env.DEEPSEEK_MODEL || "deepseek-chat",
         messages: this.messages,
         tools: agentTools,
         tool_choice: "auto",
       });
+
+      if (checkRes.usage) {
+        CostGuard.recordUsage(
+          checkRes.usage.prompt_tokens,
+          checkRes.usage.completion_tokens
+        );
+      }
 
       const checkMsg = checkRes.choices[0]?.message;
       if (!checkMsg) {
@@ -80,7 +105,6 @@ export class PersonalAgent {
 
         for (const toolCall of checkMsg.tool_calls) {
           if (toolCall.type === "function") {
-            // 给前端先吐一个状态提示
             yield `\n> ⚙️ *[Agent 正在调用工具: ${toolCall.function.name}...]*\n\n`;
 
             const toolResult = await executeTool(
@@ -95,20 +119,25 @@ export class PersonalAgent {
             });
           }
         }
-        // 执行完工具，进入下一轮（将工具结果流式总结给用户）
         continue;
       }
 
-      // 不需要调工具（或工具已经执行完毕），直接以 Stream 方式打字吐给前端
-      // 把刚刚已经生成的回复文本或者新发起的流式请求推给前端
+      // 文本生成流
       const stream = await client.chat.completions.create({
         model: process.env.DEEPSEEK_MODEL || "deepseek-chat",
         messages: this.messages,
         stream: true,
+        stream_options: { include_usage: true }, // 让流式响应也返回 token 统计
       });
 
       let fullReply = "";
       for await (const chunk of stream) {
+        if (chunk.usage) {
+          CostGuard.recordUsage(
+            chunk.usage.prompt_tokens,
+            chunk.usage.completion_tokens
+          );
+        }
         const text = chunk.choices[0]?.delta?.content || "";
         if (text) {
           fullReply += text;
@@ -120,7 +149,6 @@ export class PersonalAgent {
     }
   }
 
-  // 清空对话记忆
   reset() {
     this.messages = [{ role: "system", content: PERSONAL_SYSTEM_PROMPT }];
   }

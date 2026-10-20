@@ -4,6 +4,7 @@ import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
 import { PersonalAgent } from "./agent.js";
+import { CostGuard } from "./costGuard.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -72,6 +73,11 @@ app.get("/api/messages", (req, res) => {
     } catch (e) {}
   }
   res.json([]);
+});
+
+// 查看 API 费用统计与熔断状态接口
+app.get("/api/stats", (req, res) => {
+  res.json(CostGuard.getStats());
 });
 
 app.listen(port, () => {
