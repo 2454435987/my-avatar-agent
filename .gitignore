@@ -5,3 +5,12 @@ dist/
 data/messages.json
 *.log
 .DS_Store
+
+# 隐私保护：忽略所有私密简历与需求文档 (PDF / Word)
+docs/*.pdf
+docs/*.docx
+docs/*.doc
+docs/resume_details.md
+# 但保留示例模板文件供开源用户参考
+!docs/*.example.md
+!docs/.gitkeep
